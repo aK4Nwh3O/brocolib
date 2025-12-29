@@ -1,0 +1,2 @@
+window.ALL_CRATES = ["adler2","bad64","bad64_sys","binde","binde_derive","binread","binread_derive","brocolib","byteorder","cfg_if","crc32fast","cstr_core","cty","either","flate2","memchr","miniz_oxide","num_derive","num_traits","object","proc_macro2","quote","rustversion","ruzstd","simd_adler32","static_assertions","thiserror","thiserror_impl","twox_hash","unicode_ident"];
+//{"start":21,"fragment_lengths":[8,8,12,8,15,10,17,11,12,9,12,12,6,9,9,9,14,13,13,9,14,8,14,9,15,20,12,17,12,16]}
