@@ -2,8 +2,9 @@
 /// 用于验证 brocolib 能否离线解析 vtable slot → 方法名
 ///
 /// 用法: pcr_vtable_check <global-metadata.dat> [class_name_filter]
-use brocolib::global_metadata::{EncodedMethodIndex, GlobalMetadata};
-use brocolib::Metadata;
+use brocolib::global_metadata::{
+    self, DecodedMethodIndex, GlobalMetadata, TypeDefinitionIndex,
+};
 use std::env;
 use std::fs;
 use std::process;
@@ -24,9 +25,8 @@ fn main() {
         process::exit(1);
     });
 
-    // 只用 global metadata 解析（不需要 libil2cpp.so 的 ELF）
-    // brocolib 的 Metadata::parse 需要 ELF，但 GlobalMetadata 可以单独 deserialize
-    let gmd = brocolib::global_metadata::deserialize(&meta_data).unwrap_or_else(|e| {
+    // 只用 global metadata 解析
+    let gmd = global_metadata::deserialize(&meta_data).unwrap_or_else(|e| {
         eprintln!("解析 global-metadata.dat 失败: {}", e);
         process::exit(1);
     });
@@ -34,21 +34,20 @@ fn main() {
     println!("=== PCR global-metadata.dat 概览 ===");
     println!("类型定义数: {}", gmd.type_definitions.as_vec().len());
     println!("方法定义数: {}", gmd.methods.as_vec().len());
-    println!("字符串数:   {}", gmd.string.as_vec().len());
     println!("程序集数:   {}", gmd.assemblies.as_vec().len());
     println!("VTable 行数: {}", gmd.vtable_methods.as_vec().len());
 
     // 遍历所有 type definition，找匹配 filter 的类
     println!("\n=== 遍历类型定义 ===");
     let type_defs = gmd.type_definitions.as_vec();
+    let methods = gmd.methods.as_vec();
     let strings = &gmd.string;
-    let methods = &gmd.methods;
     let vtable_methods = &gmd.vtable_methods;
 
     let mut found = 0;
     for (i, td) in type_defs.iter().enumerate() {
-        let name = td.name(&gmd);
-        let namespace = td.namespace(&gmd);
+        let name: &str = &strings[td.name_index];
+        let namespace: &str = &strings[td.namespace_index];
         let full_name = if namespace.is_empty() {
             name.to_string()
         } else {
@@ -76,38 +75,43 @@ fn main() {
 
         // 读 vtable_methods
         if td.vtable_count > 0 {
-            let vtbl = td.vtable_methods(&gmd);
+            let range = td.vtable_start.make_range(td.vtable_count as _);
+            let vtbl = &vtable_methods[range];
             println!("  vtable slots ({}):", vtbl.len());
             for (slot, emi) in vtbl.iter().enumerate() {
                 let decoded = emi.decode();
                 let method_name = match &decoded {
-                    brocolib::global_metadata::DecodedMethodIndex::MethodDef(mi) => {
-                        let md = &methods[*mi];
-                        format!("{} (method_def={})", md.name(&gmd), mi.index())
+                    DecodedMethodIndex::MethodDef(mi) => {
+                        let md = &methods[mi.index() as usize];
+                        let mname: &str = &strings[md.name_index];
+                        format!("{} (method_def={})", mname, mi.index())
                     }
-                    brocolib::global_metadata::DecodedMethodIndex::TypeInfo(ti) => {
+                    DecodedMethodIndex::TypeInfo(ti) => {
                         format!("TypeInfo({})", ti)
                     }
-                    brocolib::global_metadata::DecodedMethodIndex::Il2CppType(ti) => {
+                    DecodedMethodIndex::Il2CppType(ti) => {
                         format!("Il2CppType({})", ti)
                     }
-                    brocolib::global_metadata::DecodedMethodIndex::FieldInfo(fri) => {
+                    DecodedMethodIndex::FieldInfo(fri) => {
                         format!("FieldInfo({})", fri.index())
                     }
-                    brocolib::global_metadata::DecodedMethodIndex::StringLiteral(sli) => {
+                    DecodedMethodIndex::StringLiteral(sli) => {
                         format!("StringLiteral({})", sli.index())
                     }
-                    brocolib::global_metadata::DecodedMethodIndex::MethodRef(mr) => {
+                    DecodedMethodIndex::MethodRef(mr) => {
                         format!("MethodRef({})", mr)
                     }
-                    brocolib::global_metadata::DecodedMethodIndex::FieldRva(fri) => {
+                    DecodedMethodIndex::FieldRva(fri) => {
                         format!("FieldRva({})", fri.index())
                     }
-                    brocolib::global_metadata::DecodedMethodIndex::Invalid(inv) => {
+                    DecodedMethodIndex::Invalid(inv) => {
                         format!("Invalid({:?})", inv)
                     }
                 };
-                println!("    slot {:3d}: {}  (encoded=0x{:08x})", slot, method_name, emi.0);
+                println!(
+                    "    slot {:3d}: {}  (encoded=0x{:08x})",
+                    slot, method_name, emi.0
+                );
             }
         }
 
