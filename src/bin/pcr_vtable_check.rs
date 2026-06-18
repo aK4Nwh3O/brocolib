@@ -109,7 +109,7 @@ fn main() {
                     }
                 };
                 println!(
-                    "    slot {:3d}: {}  (encoded=0x{:08x})",
+                    "    slot {:>3} {}  (encoded=0x{:08x})",
                     slot, method_name, emi.0
                 );
             }
