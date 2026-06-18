@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+    branches: [il2cpp_v31]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Install cross-compilation deps (Windows)
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        run: sudo apt-get install -y mingw-w64
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: brocolib-${{ matrix.target }}
+          path: |
+            target/${{ matrix.target }}/release/pcr_vtable_check${{ matrix.target == 'x86_64-pc-windows-gnu' && '.exe' || '' }}
+            target/${{ matrix.target }}/release/libbrocolib.rlib
+          if-no-files-found: warn

@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["StackDoubleFlow <ojaslandge@gmail.com>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/manifest.html
 
 [dependencies]
 thiserror = "2"
@@ -13,3 +13,7 @@ bad64 = "0.12"
 byteorder = "1.4"
 object = "0.38"
 binread = "2.2"
+
+[[bin]]
+name = "pcr_vtable_check"
+path = "src/bin/pcr_vtable_check.rs"
